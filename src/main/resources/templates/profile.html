@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${profile.name} + '\'s profile'"></title>
+</head>
+<body>
+<a href="/">To main</a>
+<h2 th:text="'Name: ' + ${profile.name}"></h2>
+<h2 th:text="'Info: ' + ${profile.openInformation}"></h2>
+<h2 th:if="${relationsAsInitiator != null}" th:text="'Closed info: ' + ${profile.closedInformation}"></h2>
+
+<div th:if="${relationsAsInitiator.size() != 0}">
+    <hr>
+    <h2>Profiles you liked</h2>
+    <ul>
+        <li th:each="relation : ${relationsAsInitiator}">
+            <p th:text="'Profile Name: ' + ${relation.aim.name}"></p>
+            <p th:text="'State: ' + ${relation.relationState}"></p>
+        </li>
+    </ul>
+</div>
+
+<div th:if="${relationsAsAim.size() != 0}">
+    <hr>
+    <h2>Profiles that liked you</h2>
+    <ul>
+        <li th:each="relation : ${relationsAsAim}">
+            <p th:text="'Profile Name: ' + ${relation.initiator.name}"></p>
+            <div style="display: flex; gap: 20px">
+                <form method="post" th:action="@{'/profiles/approve/' + ${relation.id}}">
+                    <input type="submit" value="Like">
+                </form>
+                <form method="post" th:action="@{'/profiles/reject/' + ${relation.id}}">
+                    <input type="submit" value="Reject">
+                </form>
+            </div>
+        </li>
+    </ul>
+</div>
+
+<div th:if="${approvedProfiles.size() != 0}">
+    <hr>
+    <h2>Approved connections</h2>
+    <ul>
+        <li th:each="profile : ${approvedProfiles}">
+            <p th:text="'Profile Name: ' + ${profile.name}"></p>
+            <p th:text="'Close info: ' + ${profile.closedInformation}"></p>
+        </li>
+    </ul>
+</div>
+
+<div th:if="${rejectedRelations.size() != 0}">
+    <hr>
+    <h2>Rejected relations</h2>
+    <ul>
+        <li th:each="relation : ${rejectedRelations}">
+            <p th:text="'Profile Name: ' + ${relation.aim.name}"></p>
+            <form method="post" th:action="@{'/profiles/delete/' + ${relation.id}}">
+                <input type="submit" value="Delete">
+            </form>
+        </li>
+    </ul>
+</div>
+
+<h3 th:if="${relationsAsInitiator.size() == 0 && relationsAsAim.size() == 0 && approvedProfiles.size() == 0 && rejectedRelations.size() == 0}">
+    There will be your connections
+</h3>
+</body>
+</html>

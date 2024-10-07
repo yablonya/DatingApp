@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Profiles</title>
+</head>
+<body>
+<a href="/">To main</a>
+<h1>Profiles</h1>
+
+<form method="get" action="/profiles">
+  <label for="keyword">Search by keyword:</label>
+  <input type="text" id="keyword" name="keyword" placeholder="Enter keyword"/>
+  <button type="submit">Search</button>
+</form>
+
+<hr/>
+
+<ul>
+  <li th:each="profile : ${profiles}">
+    <p>Name: <span th:text="${profile.name}"></span></p>
+    <p>Open Information: <span th:text="${profile.openInformation}"></span></p>
+    <form th:if="${user != null}" method="post" th:action="@{'/profiles/like/' + ${profile.id}}">
+      <input type="submit" value="Like">
+    </form>
+    <hr/>
+  </li>
+</ul>
+</body>
+</html>
