@@ -18,11 +18,12 @@ import java.util.stream.Stream;
 @Service
 public class ProfileService {
     private final ProfileRepository profileRepository;
-    private static final Logger logger = LoggerFactory.getLogger(ProfileService.class);
+    private final Logger logger;
 
     @Autowired
-    public ProfileService(ProfileRepository profileRepository) {
+    public ProfileService(ProfileRepository profileRepository, Logger prototypeLogger) {
         this.profileRepository = profileRepository;
+        this.logger = prototypeLogger;
     }
 
     public Profile registerUser(String name, String email, String password, String openInformation, String closedInformation) {
