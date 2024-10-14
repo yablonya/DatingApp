@@ -5,18 +5,13 @@ import org.example.datingapp.models.enums.RelationState;
 import org.example.datingapp.repositories.RelationsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class RelationService {
-    private final RelationsRepository relationsRepository;
-
     @Autowired
-    public RelationService(RelationsRepository relationsRepository) {
-        this.relationsRepository = relationsRepository;
-    }
+    private RelationsRepository relationsRepository;
 
     public void saveRelation(Relation relation) {
         relationsRepository.save(relation);
