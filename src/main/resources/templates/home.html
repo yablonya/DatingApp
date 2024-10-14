@@ -6,24 +6,32 @@
 </head>
 <body>
 <div>
-    <div th:if="${user != null}">
-        <h1>
-            Hello, <span th:text="${user.name}"></span>!
-        </h1>
-        <a th:href="@{'/profiles/' + ${user.id}}">To personal profile</a>
-        <form method="post" th:action="@{/logout}">
-            <button type="submit">Logout</button>
-        </form>
-    </div>
+    <h1>
+        Hello, <span th:text="${user != null ? user.name : 'romeo or juliet!'}"></span>!
+    </h1>
 
-    <div th:unless="${user != null}">
-        <h1>Hello, romeo or juliet!</h1>
-        <form method="post" th:action="@{/login}">
-            <label>Email: <input type="email" name="email" required /></label><br/>
-            <label>Password: <input type="password" name="password" required /></label><br/>
-            <button type="submit">Login</button>
-        </form>
-        Don't have an account? <a th:href="@{/register}">Register</a>
+    <div th:switch="${user != null}">
+        <div th:case="true">
+            <a th:href="@{'/profiles/' + ${user.id}}">To personal profile</a>
+
+            <br/>
+
+            <form method="post" th:action="@{/logout}">
+                <button type="submit">Logout</button>
+            </form>
+        </div>
+
+        <div th:case="false">
+            <form method="post" th:action="@{/login}">
+                <label>Email: <input type="email" name="email" required /></label><br/>
+                <label>Password: <input type="password" name="password" required /></label><br/>
+                <button type="submit">Login</button>
+            </form>
+
+            <br/>
+
+            Don't have an account? <a th:href="@{/register}">Register</a>
+        </div>
     </div>
 
     <br/>
