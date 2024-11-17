@@ -1,20 +1,20 @@
 package org.example.datingapp.controllers;
 
-import jakarta.servlet.http.HttpServletRequest;
 import org.example.datingapp.models.Profile;
 import org.example.datingapp.models.Relation;
-import org.example.datingapp.models.enums.RelationState;
 import org.example.datingapp.services.ProfileService;
 import org.example.datingapp.services.RelationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
-@Controller
-@RequestMapping("/profiles")
+@RestController
+@RequestMapping("/api/profiles")
 public class ProfileController {
     private final ProfileService profileService;
     private final RelationService relationService;
@@ -25,120 +25,186 @@ public class ProfileController {
         this.relationService = relationService;
     }
 
-    @GetMapping
-    public String getProfiles(
-            @CookieValue(value = "userId", required = false) String stringUserId,
-            @RequestParam(required = false) String keyword,
-            Model model) {
-        List<Profile> profiles = profileService.getProfiles(keyword);
-        addLoggedInUserToModel(stringUserId, model, profiles);
-        return "profiles";
+    @PostMapping("/register")
+    public ResponseEntity<Profile> registerProfile(@RequestBody Map<String, String> profileDetails) {
+        try {
+            Profile registeredProfile = profileService.registerProfile(
+                    profileDetails.get("name"),
+                    profileDetails.get("email"),
+                    profileDetails.get("password"),
+                    profileDetails.get("openInfo"),
+                    profileDetails.get("closedInfo")
+            );
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(
+                    "Set-Cookie",
+                    "profileId=" + registeredProfile.getId() + "; Path=/; HttpOnly; Max-Age=86400"
+            );
+
+            return ResponseEntity.status(HttpStatus.CREATED).headers(headers).body(registeredProfile);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PostMapping("/update")
+    public ResponseEntity<Profile> updateProfile(
+            @CookieValue(value = "profileId", required = false) String profileIdCookie,
+            @RequestBody Map<String, String> profileDetails
+    ) {
+        try {
+            if (profileIdCookie == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            Long profileId = Long.parseLong(profileIdCookie);
+            Profile updatedProfile = profileService.updateProfile(profileId, profileDetails);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(
+                    "Set-Cookie",
+                    "profileId=" + updatedProfile.getId() + "; Path=/; HttpOnly; Max-Age=86400"
+            );
+
+            return ResponseEntity.ok().headers(headers).body(updatedProfile);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PostMapping("/delete")
+    public ResponseEntity<Void> delete(
+            @CookieValue(value = "profileId", required = false) String profileIdCookie,
+            @RequestBody Map<String, String> credentials
+    ) {
+        try {
+            if (profileIdCookie == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            Long profileId = Long.parseLong(profileIdCookie);
+            Profile profile = profileService.getProfile(profileId);
+
+            if (profile != null && profile.getPassword().equals(credentials.get("password"))) {
+                profileService.deleteProfile(profileId);
+                HttpHeaders headers = new HttpHeaders();
+                headers.add("Set-Cookie", "profileId=; Path=/; Max-Age=0");
+
+                return ResponseEntity.noContent().headers(headers).build();
+            }
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<Profile> loginProfile(@RequestBody Map<String, String> credentials) {
+        try {
+            Profile profile = profileService.loginProfile(
+                    credentials.get("email"),
+                    credentials.get("password")
+            );
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(
+                    "Set-Cookie",
+                    "profileId=" + profile.getId() + "; Path=/; HttpOnly; Max-Age=86400"
+            );
+
+            return ResponseEntity.ok().headers(headers).body(profile);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@CookieValue(value = "profileId", required = false) String profileIdCookie) {
+        try {
+            if (profileIdCookie != null) {
+                HttpHeaders headers = new HttpHeaders();
+                headers.add("Set-Cookie", "profileId=; Path=/; Max-Age=0");
+
+                return ResponseEntity.noContent().headers(headers).build();
+            }
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<Profile>> getProfiles(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size,
+            @RequestParam(value = "keyword", required = false) String keyword
+    ) {
+        try {
+            List<Profile> profiles = profileService.getAllWithPaginationAndKeyword(page * size, size, keyword);
+            if (profiles.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+            }
+
+            return ResponseEntity.ok(profiles);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/all/approved")
+    public ResponseEntity<List<Profile>> getAllApprovedProfiles(
+            @CookieValue(value = "profileId", required = false) String profileIdCookie
+    ) {
+        try {
+            if (profileIdCookie == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            Long profileId = Long.parseLong(profileIdCookie);
+            List<Relation> profileRelations = relationService.getAllProfileRelations(profileId);
+            List<Profile> approvedProfiles = profileService.getAllApprovedProfiles(profileId, profileRelations);
+
+            if (approvedProfiles.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NO_CONTENT).body(null);
+            }
+
+            return ResponseEntity.ok(approvedProfiles);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
     @GetMapping("/{profileId}")
-    public String cabinet(
-            @CookieValue(value = "userId", required = false) String stringUserId,
-            @PathVariable Long profileId,
-            Model model) {
-        Profile profile = profileService.getProfile(profileId);
-        model.addAttribute("profile", profile);
+    public ResponseEntity<Profile> getProfile(@PathVariable Long profileId) {
+        try {
+            Profile profile = profileService.getProfile(profileId);
 
-        if (stringUserId != null && profileId.equals(Long.parseLong(stringUserId))) {
-            loadUserCabinetData(profileId, model);
-        }
-
-        return "profile";
-    }
-
-    @PostMapping("/like/{aimId}")
-    public String likeProfile(
-            @CookieValue(value = "userId", required = false) String stringUserId,
-            @PathVariable Long aimId,
-            HttpServletRequest request) {
-        processRelation(stringUserId, aimId);
-        return "redirect:" + request.getHeader("Referer");
-    }
-
-    @PostMapping("/approve/{relationId}")
-    public String approveRelation(
-            @CookieValue(value = "userId", required = false) String stringUserId,
-            @PathVariable Long relationId,
-            HttpServletRequest request) {
-        updateRelationState(stringUserId, relationId, RelationState.APPROVED);
-        return "redirect:" + request.getHeader("Referer");
-    }
-
-    @PostMapping("/reject/{relationId}")
-    public String rejectRelation(
-            @CookieValue(value = "userId", required = false) String stringUserId,
-            @PathVariable Long relationId,
-            HttpServletRequest request) {
-        updateRelationState(stringUserId, relationId, RelationState.REJECTED);
-        return "redirect:" + request.getHeader("Referer");
-    }
-
-    @PostMapping("/delete/{relationId}")
-    public String deleteRelation(
-            @CookieValue(value = "userId", required = false) String stringUserId,
-            @PathVariable Long relationId,
-            HttpServletRequest request) {
-        if (stringUserId != null) {
-            Long loggedInUserId = Long.parseLong(stringUserId);
-            Relation relation = relationService.getRelation(relationId);
-            if (relation.getInitiator().getId().equals(loggedInUserId)) {
-                relationService.deleteRelation(relation);
+            if (profile == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
             }
-        }
-        return "redirect:" + request.getHeader("Referer");
-    }
 
-    private void addLoggedInUserToModel(String stringUserId, Model model, List<Profile> profiles) {
-        if (stringUserId != null) {
-            Long loggedInUserId = Long.parseLong(stringUserId);
-            Profile user = profileService.getProfile(loggedInUserId);
-            List<Relation> relations = relationService.getUserRelationsAsInitiator(loggedInUserId);
-            profiles = profileService.filterProfilesForUser(profiles, loggedInUserId, relations);
-            model.addAttribute("user", user);
-            model.addAttribute("profiles", profiles);
-        }
-    }
-
-    private void loadUserCabinetData(Long loggedInUserId, Model model) {
-        List<Relation> relationsAsInitiator = relationService.getUserRelationsAsInitiator(loggedInUserId);
-        List<Relation> relationsAsAim = relationService.getUserRelationsAsAim(loggedInUserId);
-        List<Relation> approvedAsAim = relationService.getApprovedRelationsAsAim(loggedInUserId);
-        List<Relation> approvedAsInitiator = relationService.getApprovedRelationsAsInitiator(loggedInUserId);
-        List<Profile> approvedProfiles = profileService.getApprovedProfiles(approvedAsAim, approvedAsInitiator);
-        List<Relation> rejectedRelations = relationService.getUserRejectedRelations(loggedInUserId);
-
-        model.addAttribute("relationsAsInitiator", relationService.filterPending(relationsAsInitiator));
-        model.addAttribute("relationsAsAim", relationService.filterPending(relationsAsAim));
-        model.addAttribute("approvedProfiles", approvedProfiles);
-        model.addAttribute("rejectedRelations", rejectedRelations);
-    }
-
-    private void processRelation(String stringUserId, Long aimId) {
-        if (stringUserId != null) {
-            Long loggedInUserId = Long.parseLong(stringUserId);
-            Profile initiator = profileService.getProfile(loggedInUserId);
-            Profile aim = profileService.getProfile(aimId);
-
-            Relation relation = new Relation();
-            relation.setInitiator(initiator);
-            relation.setAim(aim);
-            relation.setRelationState(RelationState.PENDING);
-            relationService.saveRelation(relation);
-        }
-    }
-
-    private void updateRelationState(String stringUserId, Long relationId, RelationState newState) {
-        if (stringUserId != null) {
-            Long loggedInUserId = Long.parseLong(stringUserId);
-            Relation relation = relationService.getRelation(relationId);
-            if (relation.getAim().getId().equals(loggedInUserId)) {
-                relation.setRelationState(newState);
-                relationService.saveRelation(relation);
-            }
+            return ResponseEntity.ok(profile);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 }

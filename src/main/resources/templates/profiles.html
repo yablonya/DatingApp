@@ -19,7 +19,7 @@
 <ul>
   <li th:each="profile : ${profiles}">
     <p>Name: <span th:text="${profile.name}"></span></p>
-    <p>Open Information: <span th:text="${profile.openInformation}"></span></p>
+    <p>Open Information: <span th:text="${profile.openInfor}"></span></p>
     <form th:if="${user != null}" method="post" th:action="@{'/profiles/like/' + ${profile.id}}">
       <input type="submit" value="Like">
     </form>

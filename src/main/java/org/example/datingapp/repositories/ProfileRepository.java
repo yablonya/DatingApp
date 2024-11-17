@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface ProfileRepository extends JpaRepository<Profile, Long> {
     Profile findByEmail(String keyword);
-    List<Profile> findByOpenInformationContaining(String keyword);
+
+    List<Profile> findByOpenInfoContainingIgnoreCase(String keyword);
 }

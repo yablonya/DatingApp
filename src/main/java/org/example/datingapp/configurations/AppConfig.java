@@ -1,6 +1,7 @@
 package org.example.datingapp.configurations;
 
 import org.example.datingapp.repositories.ProfileRepository;
+import org.example.datingapp.repositories.RelationsRepository;
 import org.example.datingapp.services.ProfileService;
 import org.example.datingapp.services.RelationService;
 import org.slf4j.Logger;
@@ -18,8 +19,11 @@ public class AppConfig {
     }
 
     @Bean
-    public RelationService relationService() {
-        return new RelationService();
+    public RelationService relationService(
+            RelationsRepository relationsRepository,
+            ProfileRepository profileRepository
+    ) {
+        return new RelationService(relationsRepository, profileRepository, prototypeLogger());
     }
 
     @Bean

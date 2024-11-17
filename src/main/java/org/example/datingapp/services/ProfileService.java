@@ -1,17 +1,14 @@
 package org.example.datingapp.services;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
 import org.example.datingapp.models.Profile;
 import org.example.datingapp.models.Relation;
+import org.example.datingapp.models.enums.RelationState;
 import org.example.datingapp.repositories.ProfileRepository;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.ui.Model;
+
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 public class ProfileService {
@@ -24,89 +21,145 @@ public class ProfileService {
         this.logger = prototypeLogger;
     }
 
-    public Profile registerUser(String name, String email, String password, String openInformation, String closedInformation) {
+    public Profile registerProfile(String name, String email, String password, String openInfo, String closedInfo) {
         if (profileRepository.findByEmail(email) != null) {
-            throw new IllegalArgumentException("User with this email already exists.");
+            throw new IllegalArgumentException("Profile with this email already exists.");
         }
 
-        Profile profile = createProfile(name, email, password, openInformation, closedInformation);
+        Profile profile = createProfile(name, email, password, openInfo, closedInfo);
         Profile savedProfile = profileRepository.save(profile);
-        logger.info("Profile with email created: {}", savedProfile.getEmail());
+        logger.info("Profile created successfully with email: {}", savedProfile.getEmail());
 
         return savedProfile;
     }
 
-    public Profile loginUser(String email, String password) {
-        Profile user = profileRepository.findByEmail(email);
-        if (user == null || !user.getPassword().equals(password)) {
-            throw new IllegalArgumentException("Invalid email or password.");
-        }
-        return user;
+    public Profile updateProfile(Long profileId, Map<String, String> updatedDetails) {
+        Profile profile = profileRepository.findById(profileId).orElseThrow(() -> {
+            logger.warn("Attempt to update non-existent profile with ID: {}", profileId);
+
+            return new IllegalArgumentException("Profile not found.");
+        });
+
+        updatedDetails.forEach((key, value) -> {
+            switch (key) {
+                case "email":
+                    Profile existingProfile = profileRepository.findByEmail(value);
+
+                    if (existingProfile != null && !existingProfile.getId().equals(profileId)) {
+                        logger.warn("Attempt to update profile ID: {} with existing email: {}", profileId, value);
+                        throw new IllegalArgumentException("Profile with this email already exists.");
+                    }
+                    profile.setEmail(value);
+                    break;
+                case "name":
+                    profile.setName(value);
+                    break;
+                case "password":
+                    profile.setPassword(value);
+                    break;
+                case "openInformation":
+                    profile.setOpenInfo(value);
+                    break;
+                case "closedInformation":
+                    profile.setClosedInfo(value);
+                    break;
+                default:
+                    logger.warn("Unknown field: {} in update request", key);
+            }
+        });
+
+        Profile updatedProfile = profileRepository.save(profile);
+        logger.info("Profile with ID: {} updated successfully", profileId);
+
+        return updatedProfile;
     }
 
-    public List<Profile> getProfiles(String keyword) {
-        return (keyword == null || keyword.isEmpty()) ? profileRepository.findAll() : profileRepository.findByOpenInformationContaining(keyword);
+    public void deleteProfile(Long profileId) {
+        Profile profile = profileRepository.findById(profileId).orElse(null);
+
+        if (profile == null) {
+            throw new IllegalArgumentException("Profile not found.");
+        }
+
+        profileRepository.delete(profile);
+        logger.info("Profile with ID: {} deleted successfully", profileId);
+    }
+
+    public Profile loginProfile(String email, String password) {
+        Profile profile = profileRepository.findByEmail(email);
+
+        if (profile == null) {
+            throw new IllegalArgumentException("Profile not found.");
+        }
+
+        if (!profile.getPassword().equals(password)) {
+            throw new IllegalArgumentException("Incorrect password.");
+        }
+
+        logger.info("User logged in successfully with email: {}", email);
+        return profile;
+    }
+
+    public List<Profile> getAllWithPaginationAndKeyword(int offset, int limit, String keyword) {
+        if (keyword == null || keyword.isEmpty()) {
+            List<Profile> allProfiles = profileRepository.findAll();
+
+            return allProfiles.size() - 1 >= limit
+                    ? allProfiles.subList(offset, limit)
+                    : allProfiles.subList(offset, allProfiles.size());
+        }
+
+        List<Profile> allProfilesWithKeyword = profileRepository.findByOpenInfoContainingIgnoreCase(keyword);
+
+        return allProfilesWithKeyword.size() - 1 >= limit
+                ? allProfilesWithKeyword.subList(offset, limit)
+                : allProfilesWithKeyword.subList(offset, allProfilesWithKeyword.size());
     }
 
     public Profile getProfile(Long id) {
-        return profileRepository.findById(id).orElse(null);
-    }
+        Profile profile = profileRepository.findById(id).orElse(null);
 
-    public List<Profile> getApprovedProfiles(List<Relation> asAim, List<Relation> asInitiator) {
-        return Stream.concat(
-                asAim.stream().map(Relation::getInitiator),
-                asInitiator.stream().map(Relation::getAim)
-        ).collect(Collectors.toList());
-    }
-
-    public List<Profile> filterProfilesForUser(List<Profile> profiles, Long loggedInUserId, List<Relation> relations) {
-        Set<Long> aimIds = relations.stream()
-                .map(relation -> relation.getAim().getId())
-                .collect(Collectors.toSet());
-
-        return profiles.stream()
-                .filter(profile -> !aimIds.contains(profile.getId()) && !profile.getId().equals(loggedInUserId))
-                .collect(Collectors.toList());
-    }
-
-    public void addUserIdToCookie(HttpServletResponse response, Profile user) {
-        setCookie(response, "userId", String.valueOf(user.getId()), 24 * 60 * 60);
-    }
-
-    public void removeUserIdCookie(HttpServletResponse response) {
-        setCookie(response, "userId", null, 0);
-    }
-
-    public void addLoggedInUserToModel(String userIdCookie, Model model) {
-        if (userIdCookie != null) {
-            Long loggedInUserId = Long.parseLong(userIdCookie);
-            Profile currentUser = getProfile(loggedInUserId);
-            model.addAttribute("user", currentUser);
+        if (profile != null) {
+            logger.info("Retrieved profile with ID: {}", id);
+        } else {
+            logger.warn("Profile with ID: {} not found", id);
         }
+
+        return profile;
+    }
+
+    public List<Profile> getAllApprovedProfiles(Long profileId, List<Relation> profileRelations) {
+        List<Profile> approvedProfiles = new ArrayList<>();
+
+        for (Relation relation : profileRelations) {
+            if (RelationState.APPROVED.equals(relation.getRelationState())) {
+                if (relation.getInitiator().getId().equals(profileId)) {
+                    approvedProfiles.add(relation.getAim());
+                } else if (relation.getAim().getId().equals(profileId)) {
+                    approvedProfiles.add(relation.getInitiator());
+                }
+            }
+        }
+
+        logger.info("Retrieved {} approved profiles for profile ID: {}", approvedProfiles.size(), profileId);
+
+        return approvedProfiles;
     }
 
     private Profile createProfile(
             String name,
             String email,
             String password,
-            String openInformation,
-            String closedInformation
+            String openInfo,
+            String closedInfo
     ) {
         Profile profile = new Profile();
         profile.setName(name);
         profile.setEmail(email);
         profile.setPassword(password);
-        profile.setOpenInformation(openInformation);
-        profile.setClosedInformation(closedInformation);
+        profile.setOpenInfo(openInfo);
+        profile.setClosedInfo(closedInfo);
         return profile;
-    }
-
-    private void setCookie(HttpServletResponse response, String name, String value, int maxAge) {
-        Cookie cookie = new Cookie(name, value);
-        cookie.setMaxAge(maxAge);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        response.addCookie(cookie);
     }
 }
 
