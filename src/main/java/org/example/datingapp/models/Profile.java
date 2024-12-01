@@ -14,8 +14,8 @@ public class Profile {
     private String name;
     private String email;
     private String password;
-    private String openInformation;
-    private String closedInformation;
+    private String openInfo;
+    private String closedInfo;
 
     public Long getId() {
         return id;
@@ -49,19 +49,19 @@ public class Profile {
         this.password = name;
     }
 
-    public String getOpenInformation() {
-        return openInformation;
+    public String getOpenInfo() {
+        return openInfo;
     }
 
-    public void setOpenInformation(String openInformation) {
-        this.openInformation = openInformation;
+    public void setOpenInfo(String openInfo) {
+        this.openInfo = openInfo;
     }
 
-    public String getClosedInformation() {
-        return closedInformation;
+    public String getClosedInfo() {
+        return closedInfo;
     }
 
-    public void setClosedInformation(String closedInformation) {
-        this.closedInformation = closedInformation;
+    public void setClosedInfo(String closedInfo) {
+        this.closedInfo = closedInfo;
     }
 }
