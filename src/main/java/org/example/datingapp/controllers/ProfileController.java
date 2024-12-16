@@ -40,7 +40,7 @@ public class ProfileController {
                     description = "Details for registering a new profile",
                     required = true,
                     content = @Content(schema = @Schema(
-                            example = "{ \"name\": \"John Doe\", \"email\": \"john.doe@example.com\", \"password\": \"securePassword\", \"openInfo\": \"Some info\", \"closedInfo\": \"Sensitive info\""
+                            example = "{ \"name\": \"John Doe\", \"email\": \"john.doe@example.com\", \"password\": \"securePassword\", \"openInfo\": \"Some info\", \"closedInfo\": \"Sensitive info\" }"
                     ))
             ),
             responses = {
