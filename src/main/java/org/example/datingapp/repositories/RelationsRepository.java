@@ -8,7 +8,10 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface RelationsRepository extends JpaRepository<Relation, Long> {
+public interface RelationsRepository extends JpaRepository<Relation, Long>{
+
+
+
     List<Relation> findAllByInitiatorId(Long id);
 
     List<Relation> findAllByAimId(Long id);

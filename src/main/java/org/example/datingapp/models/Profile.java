@@ -1,5 +1,5 @@
 package org.example.datingapp.models;
-
+import java.lang.String;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
