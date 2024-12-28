@@ -15,7 +15,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 @Repository
-public class ProfileDAO {
+public class ProfileDAO{
     private final JdbcTemplate jdbcTemplate;
     private static final Logger logger = LoggerFactory.getLogger(ProfileDAO.class);
 
@@ -62,11 +62,6 @@ public class ProfileDAO {
         }
     }
 
-    public List<Profile> findByOpenInfoContaining(String keyword) {
-        String sql = "SELECT * FROM Profile WHERE open_info LIKE ?";
-        return jdbcTemplate.query(sql, new Object[]{"%" + keyword + "%"}, new ProfileRowMapper());
-    }
-
     public long save(Profile profile) {
         String sql = "INSERT INTO Profile (name, email, password, open_info, closed_info) VALUES (?, ?, ?, ?, ?) RETURNING id";
         return jdbcTemplate.queryForObject(sql, new Object[]{
@@ -93,7 +88,7 @@ public class ProfileDAO {
         }
     }
 
-    public void deleteDAO(Long id) {
+    public void delete(Long id) {
         String sql = "DELETE FROM Profile WHERE id = ?";
         jdbcTemplate.update(sql, id);
     }
